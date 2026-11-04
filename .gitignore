@@ -1,0 +1,17 @@
+node_modules/
+.env
+.env.*
+*.tar.gz
+*.log
+.local-data/
+.vercel/
+vercel-public/
+!.env.example
+
+.vercel
+.env*
+!/.env.example
+
+dist/
+.openai/
+*.zip

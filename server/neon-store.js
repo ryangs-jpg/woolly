@@ -1,0 +1,3 @@
+import {neon} from '@neondatabase/serverless';
+export function postgresPlaceholders(sql){let index=0;return sql.replace(/\?/g,()=>'$'+(++index));}
+export function neonStore(connectionString){const client=neon(connectionString);const prepare=(statement,args=[])=>({bind(...values){return prepare(statement,values);},query(){return client.query(postgresPlaceholders(statement),args,{fullResults:true});},async first(){const result=await this.query();return result.rows[0]||null;},async run(){const result=await this.query();return {success:true,meta:{changes:result.rowCount}};}});return {prepare,async batch(statements){const result=await client.transaction(statements.map(s=>s.query()));return result.map(r=>({success:true,meta:{changes:r.rowCount}}));}};}

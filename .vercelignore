@@ -1,0 +1,9 @@
+.git
+.openai
+.local-data
+dist
+node_modules
+tests
+work
+*.zip
+.env*

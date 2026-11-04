@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {publicProviders,openverseItem,tourismItem,searchTourism} from '../server/public-sources.js';
+import {visitorSession} from '../server/visitor-session.js';
+import {postgresPlaceholders} from '../server/neon-store.js';
+test('API 키 값 대신 설정 여부만 제공한다',()=>{const providers=publicProviders({TOURAPI_SERVICE_KEY:'private-test-key'});assert.equal(providers.find(x=>x.id==='tourapi').configured,true);assert.equal(JSON.stringify(providers).includes('private-test-key'),false);assert.equal(publicProviders().find(x=>x.id==='tourapi').configured,false);});
+test('키 없는 관광 API 호출을 실행하지 않고 설정 안내를 반환한다',async()=>{let calls=0;await assert.rejects(searchTourism('해녀',1,{},async()=>{calls++;}),/TOURAPI_SERVICE_KEY/);assert.equal(calls,0);});
+test('공개 이미지의 라이선스와 이용 조건을 별도로 확인한다',()=>{const item=openverseItem({id:'x',title:'Jeju',foreign_landing_url:'https://example.org/image',thumbnail:'https://api.openverse.org/thumb',license:'by-sa',license_version:'4.0',license_url:'https://creativecommons.org/licenses/by-sa/4.0/'});assert.equal(item.rights.display,'allowed');assert.equal(item.rights.training,'unknown');assert.equal(item.jeju,'unknown');const photo=tourismItem({contentid:'1',title:'박물관',firstimage:'http://tong.visitkorea.or.kr/a.jpg',cpyrhtDivCd:'Type3'});assert.equal(photo.image,null);assert.equal(photo.rights.training,'unknown');});
+test('서명된 방문자 세션은 재사용하며 변조한 쿠키는 다른 방문자로 격리한다',()=>{const secret='test-secret-'.repeat(5);const a=visitorSession('',secret,1000),cookie=a.cookie.split(';')[0];assert.equal(visitorSession(cookie,secret,2000).id,a.id);assert.notEqual(visitorSession(cookie+'tamper',secret,2000).id,a.id);assert.notEqual(visitorSession(cookie,secret,2592001001).id,a.id);assert.throws(()=>visitorSession('','short'));});
+test('기존 고정 SQL의 자리표시자를 Postgres 바인딩으로 변환한다',()=>assert.equal(postgresPlaceholders('SELECT * FROM user_state WHERE user_id = ? AND revision = ?'),'SELECT * FROM user_state WHERE user_id = $1 AND revision = $2'));

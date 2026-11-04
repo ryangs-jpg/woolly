@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {catalog} from '../public/catalog.js';
+import {search,safeUrl,canDisplay,parseIntent,validateImport,draftPrompt,escapeHtml} from '../public/core.js';
+test('검색어가 맞는 자료만 검색하고 영상 자료를 만들어내지 않는다',()=>{assert.ok(search(catalog,{query:'현무암 질감'}).some(a=>a.id==='stone'));assert.equal(search(catalog,{query:'우주선 엔진'}).length,0);assert.equal(search(catalog,{type:'video'}).length,0);});
+test('제주 확인과 자체 제작 예제를 분리한다',()=>{const found=search(catalog,{relation:'verified',includeDemos:false});assert.equal(found.length,3);assert.ok(found.every(a=>a.origin==='external'));assert.ok(search(catalog,{includeDemos:false}).every(a=>a.origin!=='original_demo'));});
+test('미검수 자료는 검색 결과와 이미지 표시에서 제외한다',()=>{const a=validateImport({id:'draft',title:'새 자료',url:'https://example.org/source',type:'image',tags:'바다'});assert.equal(a.status,'review');assert.equal(a.rights.training,'unknown');assert.equal(canDisplay(a),false);assert.equal(search([a]).length,0);});
+test('표시 권한 확인에는 근거가 필요하고 학습 권한을 부여하지 않는다',()=>{assert.throws(()=>validateImport({title:'자료',type:'image',url:'https://example.org',displayAllowed:true}),/근거/);const a=validateImport({id:'ok',title:'자료',type:'image',url:'https://example.org',displayAllowed:true,licenseUrl:'https://example.org/license'});assert.equal(a.status,'published');assert.equal(a.rights.training,'unknown');});
+test('스크립트 URL·자격 증명 URL과 HTML 삽입을 차단한다',()=>{for(const url of ['javascript:alert(1)','data:text/html,a','file:///C:/x','http://example.org','https://u:p@example.org'])assert.equal(safeUrl(url),null);assert.equal(escapeHtml('<img onerror="x">'),'&lt;img onerror=&quot;x&quot;&gt;');});
+test('제작 조건을 추출하고 초안에 원본과 미연결 상태를 명시한다',()=>{assert.deepEqual(parseIntent('해녀 20초 영상 차분한 바다').subjects,['바다','해녀']);const text=draftPrompt([catalog[0]],'바다 영상');assert.ok(text.includes(catalog[0].url));assert.ok(text.includes('규칙 기반'));});
+test('모든 기본 자료가 명확한 출처·자체 제작 구분과 학습 미허가 상태를 갖는다',()=>{assert.equal(catalog.length,8);assert.equal(new Set(catalog.map(a=>a.id)).size,8);for(const a of catalog){assert.equal(a.rights.training,'unknown');assert.ok(a.origin==='original_demo'||safeUrl(a.url));assert.ok(a.provenance);}});
