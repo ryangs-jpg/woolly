@@ -10,7 +10,7 @@
 - 원본 출처·제작자·라이선스와 이미지 미리보기
 - Neon PostgreSQL 보드 저장, 브라우저 방문자 쿠키별 분리
 - 출처 기반 기획 프롬프트와 오픈소스 추론 서버 연결부
-- 추론 서버는 아직 미구축이며 실제 AI 생성·영상 분석·모델 학습은 미실행
+- OpenRouter 무료 모델로 텍스트 기획안 생성 연결 완료. 영상 분석·모델 학습은 미실행
 
 ## 개발
 
@@ -31,7 +31,7 @@ pnpm start
 3. Neon 스키마는 환경변수가 있는 로컬에서 `node --env-file=.env.local scripts/migrate-neon.mjs`로 준비합니다.
 4. `pnpm build`가 정적 파일을 생성하며 api/가 서버 함수를 제공합니다.
 
-오픈소스 추론 서버가 준비되면 INFERENCE_BASE_URL, INFERENCE_MODEL, INFERENCE_API_KEY를 추가하고 재배포합니다. 실제 비밀 값은 Git에 커밋하지 않습니다. [.env.example](.env.example)은 변수 이름만 제공합니다.
+현재 OpenRouter 무료 연결은 INFERENCE_BASE_URL=https://openrouter.ai/api/v1, INFERENCE_MODEL=openrouter/free 및 서버 Secret인 INFERENCE_API_KEY를 사용합니다. 실제 비밀 값은 Git에 커밋하지 않습니다. [.env.example](.env.example)은 변수 이름만 제공합니다.
 
 [상세 구성·API·추론 서버 연결 안내](README_VERCEL.md)
 
