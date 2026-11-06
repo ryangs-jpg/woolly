@@ -16,7 +16,7 @@ const relationLabel={verified:'제주 확인',reference:'연출 참고',proposal
 const all=()=>[...new Map([...catalog,...state.imports,...state.assets,...state.live].map(a=>[a.id,a])).values()];
 const isLive=a=>['commons_live','openverse_live','tourapi_live'].includes(a.origin);
 state.provider='auto';
-let cloudReady=false,searchSequence=0,composing=false;
+let cloudReady=false,searchSequence=0,composing=false,studioReady=false,studioLoading=false;
 const searchControl=createSearchController({run:(append,context)=>runSearch(append,context)});
 const remote=new RemoteStore((kind,message)=>{const node=$('cloud-status');if(node){node.textContent=message;node.dataset.status=kind;}document.querySelector('.local-status').textContent='● '+message;});
 function snapshot(){return {title:state.title,saved:state.saved,imports:state.imports,assets:all().filter(a=>isLive(a)&&(state.saved.includes(a.id)||state.feedback.some(f=>f.asset_id===a.id))).sort((a,b)=>Number(state.saved.includes(b.id))-Number(state.saved.includes(a.id))).slice(0,300),feedback:state.feedback};}
@@ -60,9 +60,9 @@ function renderResults(){
 function renderIntent(){const intent=searchIntent(state.query);$('intent').hidden=!state.query||!intent.recognized;$('intent').textContent=intent.inferred.length?'이런 방향으로 찾아볼게요: 제주 '+intent.inferred.join(' · ')+(intent.media.length?' · '+intent.media.join(' · '):''):'찾는 내용: '+[...intent.subjects,...intent.media,...intent.styles].join(' · ');}
 function recordImpressions(){state.searchId=uid();state.impressions=results().map((a,i)=>({search_id:state.searchId,asset_id:a.id,query:state.query,filters:{type:state.type,relation:state.relation,include_demos:state.includeDemos},rank:i+1,retrieval_version:isLive(a)&&state.mode==='live'&&state.hasSearched?state.provider+'-simple-v1':'purpose-tags-v2',effective_query:state.effectiveQuery,shown_at:new Date().toISOString()}));}
 function renderBoard(){const items=all().filter(a=>state.saved.includes(a.id)&&a.status==='published');$('board-results').innerHTML=items.length?items.map(card).join(''):empty('첫 번째 레퍼런스를 담아보세요','마음에 드는 카드의 + 버튼을 누르면 이 보드에 저장됩니다.');$('saved-summary').textContent=`${items.length}개의 자료를 담았어요 · ${remote.ready?'이 브라우저에서 다시 볼 수 있어요':'이 브라우저에 임시로 보관 중'}`;$('chatgpt-copy').disabled=!items.length;$('chatgpt-copy').textContent=items.length?'ChatGPT용 내용 복사':'자료를 먼저 담아주세요';$('board-title').value=state.title;$('board-count').textContent=items.length;imageErrors();}
-function renderData(){renderReview();const items=all();const stats=[['등록 자료',items.length],['검수 대기',items.filter(a=>a.status==='review').length],['명시적 피드백',state.feedback.length],['모델 학습 실행',0]];$('data-stats').innerHTML=stats.map(([label,value])=>`<div class="stat"><small>${label}</small><strong>${value}</strong></div>`).join('');$('source-rows').innerHTML=items.map(a=>`<tr><td>${a.url&&safeUrl(a.url)?`<a href="${e(a.url)}" target="_blank" rel="noopener noreferrer">${e(a.title)} ↗</a>`:e(a.title)}</td><td>${e(labels[a.type])}</td><td>${a.rights.display==='allowed'?'확인':'미확인'}</td><td>미확인</td><td>${a.status==='published'?'탐색 가능':'검수 대기'}</td><td>${a.origin==='user_import'?`<button class="button small" data-delete="${e(a.id)}">삭제</button>`:'기본 자료'}</td></tr>`).join('');}
+function renderData(){if(!studioReady)return;renderReview();const items=all();const stats=[['등록 자료',items.length],['검수 대기',items.filter(a=>a.status==='review').length],['명시적 피드백',state.feedback.length],['모델 학습 실행',0]];$('data-stats').innerHTML=stats.map(([label,value])=>`<div class="stat"><small>${label}</small><strong>${value}</strong></div>`).join('');$('source-rows').innerHTML=items.map(a=>`<tr><td>${a.url&&safeUrl(a.url)?`<a href="${e(a.url)}" target="_blank" rel="noopener noreferrer">${e(a.title)} ↗</a>`:e(a.title)}</td><td>${e(labels[a.type])}</td><td>${a.rights.display==='allowed'?'확인':'미확인'}</td><td>미확인</td><td>${a.status==='published'?'탐색 가능':'검수 대기'}</td><td>${a.origin==='user_import'?`<button class="button small" data-delete="${e(a.id)}">삭제</button>`:'기본 자료'}</td></tr>`).join('');}
 function render(){renderResults();renderBoard();renderData();}
-function view(name){state.view=name;if(name==='board'&&!$('plan-query').value.trim()&&state.query)$('plan-query').value=state.query;for(const v of ['explore','board','data'])$(v+'-view').hidden=v!==name;document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===name));$('breadcrumb').textContent={explore:'자료 찾기',board:'담은 자료',data:'데이터 스튜디오'}[name];window.scrollTo({top:0});}
+function view(name){if(name==='data'&&!studioReady)return;state.view=name;if(name==='board'&&!$('plan-query').value.trim()&&state.query)$('plan-query').value=state.query;for(const v of ['explore','board','data'])$(v+'-view').hidden=v!==name;document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===name));$('breadcrumb').textContent={explore:'자료 찾기',board:'담은 자료',data:'데이터 스튜디오'}[name];window.scrollTo({top:0});}
 function toggleSave(id){$('chatgpt-transfer').hidden=true;if(!all().some(a=>a.id===id&&a.status==='published'))return;const present=state.saved.includes(id);state.saved=present?state.saved.filter(x=>x!==id):[...state.saved,id];persist();render();if(state.detailId===id&&$('detail-dialog').open)detail(id);toast(present?'보드에서 제거했습니다.':'나의 보드에 저장했습니다.');}
 function detail(id){const a=all().find(x=>x.id===id);if(!a)return;state.detailId=id;const previous=state.feedback.findLast(x=>x.asset_id===id&&x.query===(state.query||$('plan-query').value.trim()));$('detail-content').innerHTML=`<div class="detail-body"><div class="detail-preview">${visual(a)}</div><div class="palette">${(a.colors||[]).map(c=>`<i style="background:${/^#[\da-f]{6}$/i.test(c)?c:'#ddd'}" title="${e(c)}"></i>`).join('')}</div><span class="tag">${e(labels[a.type])} · ${e(relationLabel[a.jeju])}</span><h2>${e(a.title)}</h2><p class="detail-note">${e(a.note)}</p>${a.description?`<p><strong>원본 메타데이터 설명</strong><br>${e(a.description)}</p>`:''}<dl class="detail-meta"><dt>원본 제목</dt><dd>${e(a.originalTitle||a.title)}</dd><dt>제작자·출처</dt><dd>${e(a.creator)} / ${e(a.source)}</dd><dt>이용 조건</dt><dd>${a.licenseUrl&&safeUrl(a.licenseUrl)?`<a href="${e(a.licenseUrl)}" target="_blank" rel="noopener noreferrer">${e(a.license)} ↗</a>`:e(a.license)}</dd><dt>확인 기록</dt><dd>${e(a.checkedAt)} · ${e(a.provenance)}</dd><dt>학습 권한</dt><dd>미확인 · 모델 학습에 사용하지 않음</dd><dt>분석 상태</dt><dd>${isLive(a)?'메타데이터 자동 수집 / 시각 분석·사람 검수 미실행':'검수 태그·기획 제안 / AI 자동 분석 미연결'}</dd></dl>${a.type==='font'?'<p class="font-status" id="font-status">서체 로드 상태 확인 중…</p>':''}<div class="detail-action">${a.url&&safeUrl(a.url)?`<a class="button dark" href="${e(a.url)}" target="_blank" rel="noopener noreferrer">원본 출처 보기 ↗</a>`:''}<button class="button" data-save="${e(a.id)}">${state.saved.includes(a.id)?'보드에서 제거':'나의 보드에 저장'}</button></div><div class="feedback"><span>이 자료가 목적에 맞나요?</span><p>평가 목적: ${e(state.query||$('plan-query').value.trim()||'제작 목적을 먼저 입력해 주세요')}</p><button class="button small ${previous?.kind==='explicit_relevant'?'selected':''}" data-feedback="explicit_relevant" data-id="${e(id)}">관련 있음</button><button class="button small ${previous?.kind==='explicit_irrelevant'?'selected':''}" data-feedback="explicit_irrelevant" data-id="${e(id)}">관련 없음</button><label class="sr-only" for="feedback-dimension">평가 기준</label><select id="feedback-dimension" class="button small"><option value="purpose">목적 전체</option><option value="jeju">제주 소재</option><option value="color">색감</option><option value="motion">움직임</option><option value="typography">글자</option></select></div></div>`;if(!$('detail-dialog').open)$('detail-dialog').showModal();imageErrors();if(a.type==='font'){const family=a.visual==='serif'?'Noto Serif KR':'Noto Sans KR';document.fonts.load(`16px "${family}"`,'제주').then(faces=>{if(state.detailId===id&&$('font-status'))$('font-status').textContent=faces.length?'미리보기 서체 로드됨 · 전체 한글 글리프 검증은 별도 필요':'서체 미로드 · 시스템 대체 서체로 표시 중';}).catch(()=>{if($('font-status'))$('font-status').textContent='외부 서체 미로드 · 시스템 대체 서체로 표시 중';});}}
 function download(name,data,mime='application/json;charset=utf-8'){const blob=new Blob([typeof data==='string'?data:JSON.stringify(data,null,2)],{type:mime}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
@@ -105,9 +105,8 @@ $('board-title').addEventListener('input',ev=>{state.title=ev.target.value;persi
 $('export-board').onclick=()=>download('jeju-reference-board.json',{schema_version:'1.0',title:state.title,exported_at:new Date().toISOString(),assets:all().filter(a=>state.saved.includes(a.id)),draft:state.draft,training_executed:false});
 $('create-draft').onclick=()=>{const items=all().filter(a=>state.saved.includes(a.id)&&a.status==='published');if(!items.length){toast('레퍼런스를 먼저 저장해 주세요.');return;}$('draft-origin').textContent='규칙 기반 초안 · 모델 호출 없음.';state.draft=draftPrompt(items,$('plan-query').value.trim()||state.query);$('draft-text').value=state.draft;$('draft-section').hidden=false;$('draft-section').scrollIntoView({behavior:'smooth',block:'start'});};$('draft-text').addEventListener('input',ev=>state.draft=ev.target.value);
 $('copy-draft').onclick=async()=>{try{await navigator.clipboard.writeText($('draft-text').value);toast('초안을 복사했습니다.');}catch{$('draft-text').select();toast('텍스트를 선택했습니다. Ctrl/⌘ + C로 복사하세요.');}};
-$('export-feedback').onclick=()=>download('jeju-feedback-review.json',{schema_version:'1.0',exported_at:new Date().toISOString(),training_ready:false,training_executed:false,notes:'명시적 피드백의 검수 대기 자료. 학습 권한·동의·중복 그룹 분할 검증 필요.',feedback:state.feedback});
 $('add-source').onclick=()=>{$('source-error').textContent='';$('source-dialog').showModal();};
-$('source-form').addEventListener('submit',ev=>{ev.preventDefault();try{const form=Object.fromEntries(new FormData(ev.target));const item=validateImport({...form,id:uid(),displayAllowed:form.displayAllowed==='on'});state.imports.push(item);persist();render();$('source-dialog').close();ev.target.reset();toast(item.status==='review'?'검수 대기로 등록했습니다. 데이터 스튜디오에서 확인하세요.':'표시 권한 확인 기록과 함께 등록했습니다.');}catch(error){$('source-error').textContent=error.message;}});
+$('source-form').addEventListener('submit',ev=>{ev.preventDefault();try{const form=Object.fromEntries(new FormData(ev.target));const item=validateImport({...form,id:uid(),displayAllowed:form.displayAllowed==='on'});state.imports.push(item);persist();render();$('source-dialog').close();ev.target.reset();toast(item.status==='review'?'검수 대기로 등록했습니다. 운영자가 검수 상태를 확인할 수 있어요.':'표시 권한 확인 기록과 함께 등록했습니다.');}catch(error){$('source-error').textContent=error.message;}});
 for(const id of ['detail-dialog','source-dialog'])$(id).addEventListener('click',ev=>{if(ev.target===$(id)){const r=$(id).getBoundingClientRect();if(ev.clientX<r.left||ev.clientX>r.right||ev.clientY<r.top||ev.clientY>r.bottom)$(id).close();}});
 recordImpressions();render();
 $('more-results').onclick=()=>submitSearch(true);
@@ -119,15 +118,12 @@ const bootstrap=remote.initialize();
 bootstrap.then(result=>{if(result){const saved=result.state;if(saved){Object.assign(state,{title:saved.title,saved:saved.saved,imports:saved.imports,assets:saved.assets,feedback:saved.feedback});}else{Object.assign(state,{title:'첫 번째 제주 프로젝트',saved:[],imports:[],assets:[],feedback:[]});}const legacyIds=(legacy.saved||[]).filter(id=>!state.saved.includes(id));$('migration-notice').hidden=!(legacyIds.length||(legacy.imports||[]).some(a=>!state.imports.some(b=>b.id===a.id))||(legacy.feedback||[]).some(a=>!state.feedback.some(b=>b.id===a.id)));}cloudReady=true;$('main').inert=false;$('add-source').disabled=false;render();});
 
 $('provider').onchange=()=>{state.provider=$('provider').value;state.type='all';state.relation='all';$('relation').value='all';if($('query').value.trim())submitSearch();else renderResults();};
-bootstrap.then(()=>apiRequest('/api/providers')).then(({providers})=>{$('provider-cards').innerHTML=providers.map(p=>'<article class="provider-card"><h3>'+e(p.name)+'</h3><span class="pill">'+(p.configured?(p.keyRequired?'키 등록됨':'키 없이 사용'):'키 등록 필요')+'</span><p>'+e(p.description)+'</p>'+(p.envName?'<code>'+e(p.envName)+'</code>':'')+'<a href="'+e(p.signup)+'" target="_blank" rel="noopener noreferrer">공식 서비스·활용 신청 ↗</a></article>').join('');}).catch(()=>{$('provider-cards').textContent='서버 연결 후 공개 API 설정 상태를 확인할 수 있습니다.';});
 
 let generatingPlan=false;
 bootstrap.then(()=>apiRequest('/api/inference')).then(info=>{$('inference-status').textContent=info.configured?'추론 서버 설정됨 · 선택한 자료의 제목·태그·메모·출처를 서버로 전송합니다. 이미지 파일과 피드백은 전송하지 않습니다.':'추론 서버 미연결 · 서버 주소·모델명·인증키 설정 후 AI 생성이 활성화됩니다.';$('generate-plan').disabled=!info.configured;}).catch(()=>{$('inference-status').textContent='추론 서버 설정을 확인하지 못했습니다.';});
 $('generate-plan').onclick=async()=>{if(generatingPlan)return;const query=$('plan-query').value.trim()||state.query;const assets=all().filter(a=>state.saved.includes(a.id)&&a.status==='published'&&safeUrl(a.url));if(!query||!assets.length||assets.length>12){toast('목적을 입력하고 원본 출처가 있는 자료 1~12개를 저장해 주세요.');return;}generatingPlan=true;$('generate-plan').disabled=true;$('inference-status').textContent='기획안 생성 중…';try{const result=await apiRequest('/api/plan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query,assets})});state.draft=result.text+'\n\n참고 출처\n'+result.references.map(r=>'['+r.number+'] '+r.title+' '+r.url).join('\n');$('draft-text').value=state.draft;$('draft-origin').textContent='AI 생성 · '+result.model+' · 메타데이터 참고 / 시각 분석·모델 학습 미실행';$('draft-section').hidden=false;$('draft-section').scrollIntoView({behavior:'smooth',block:'start'});$('inference-status').textContent=result.incomplete?'응답 길이 제한으로 초안이 일부만 작성됐습니다. 제작 목적을 줄여 다시 생성해 주세요.':'AI 기획안 생성 완료 · 출처별 사실과 제안을 검수해 주세요.';}catch(error){$('inference-status').textContent=error.message;}finally{generatingPlan=false;$('generate-plan').disabled=false;}};
 
 function renderReview(){const bundle=buildReviewBundle(all(),state.feedback),s=bundle.summary;$('review-summary').innerHTML=[['검수 행',s.rows],['관련 있음',s.positive],['관련 없음',s.negative],['양쪽 평가가 있는 목적',s.comparable_queries]].map(([label,value])=>'<div class="stat"><small>'+e(label)+'</small><strong>'+value+'</strong></div>').join('');$('review-quality').textContent='출처 누락 '+s.missing_sources+'건 · 상충 평가 '+s.conflicts+'건 · 연결 그룹 '+s.groups+'개 · 학습 준비 완료 0건';$('review-queries').innerHTML=bundle.queries.length?'<div class="table-wrap"><table><thead><tr><th>평가 목적</th><th>기준</th><th>관련 있음</th><th>관련 없음</th><th>상태</th></tr></thead><tbody>'+bundle.queries.slice(0,10).map(q=>'<tr><td>'+e(q.query||'목적 미입력')+'</td><td>'+e(({purpose:'목적 전체',jeju:'제주 소재',color:'색감',motion:'움직임',typography:'글자'})[q.dimension]||q.dimension)+'</td><td>'+q.positive+'</td><td>'+q.negative+'</td><td>'+(q.conflicts?'상충 검토':q.positive&&q.negative&&q.query?'라벨 검수 대기':'비교 자료 보강')+'</td></tr>').join('')+'</tbody></table></div><p class="form-note">최대 10개 목적 표시 · 전체 기록은 내보내기에 포함됩니다.</p>':'<p>제작 목적을 입력하고 자료 상세에서 관련 있음·없음을 평가하면 검수 목록이 만들어집니다.</p>';}
-$('export-review').onclick=()=>{const b=buildReviewBundle(all(),state.feedback);if(!b.rows.length){toast('목적을 입력하고 자료를 평가해 주세요.');return;}download('jeju-training-review.json',{...b,exported_at:new Date().toISOString()});};
-$('export-review-jsonl').onclick=()=>{const b=buildReviewBundle(all(),state.feedback);if(!b.rows.length){toast('목적을 입력하고 자료를 평가해 주세요.');return;}download('jeju-training-review.jsonl',b.rows.map(r=>JSON.stringify(r)).join('\n')+'\n','application/x-ndjson;charset=utf-8');};
 
 $('chatgpt-copy').onclick=async()=>{
  const items=all().filter(a=>state.saved.includes(a.id)&&a.status==='published');if(!items.length){toast('마음에 드는 자료의 담기를 눌러주세요.');return;}
@@ -139,3 +135,75 @@ $('chatgpt-copy').onclick=async()=>{
 };
 
 $('plan-query').addEventListener('input',()=>{$('chatgpt-transfer').hidden=true;});
+
+function setupStudioActions(){
+$('export-feedback').onclick=()=>download('jeju-feedback-review.json',{schema_version:'1.0',exported_at:new Date().toISOString(),training_ready:false,training_executed:false,notes:'명시적 피드백의 검수 대기 자료. 학습 권한·동의·중복 그룹 분할 검증 필요.',feedback:state.feedback});
+$('export-review').onclick=()=>{const b=buildReviewBundle(all(),state.feedback);if(!b.rows.length){toast('목적을 입력하고 자료를 평가해 주세요.');return;}download('jeju-training-review.json',{...b,exported_at:new Date().toISOString()});};
+$('export-review-jsonl').onclick=()=>{const b=buildReviewBundle(all(),state.feedback);if(!b.rows.length){toast('목적을 입력하고 자료를 평가해 주세요.');return;}download('jeju-training-review.jsonl',b.rows.map(r=>JSON.stringify(r)).join('\n')+'\n','application/x-ndjson;charset=utf-8');};
+}
+async function loadStudio(){
+ if(studioReady||studioLoading)return;
+ studioLoading=true;
+ try{
+  const response=await apiRequest('/api/studio/view');
+  const placeholder=$('data-view');
+  if(!placeholder||typeof response.html!=='string'||!response.html.startsWith('<section id="data-view"'))throw Error('운영자 화면을 불러오지 못했습니다.');
+  placeholder.outerHTML=response.html;
+  studioReady=true;
+  const nav=document.querySelector('nav[aria-label="주 메뉴"]');
+  if(!nav.querySelector('[data-view="data"]'))nav.insertAdjacentHTML('beforeend','<button class="nav-item" type="button" data-view="data"><span>⌘</span> 데이터 스튜디오</button>');
+  $('studio-access').textContent='운영자 · 로그아웃';
+  setupStudioActions();renderData();
+  apiRequest('/api/providers').then(({providers})=>{$('provider-cards').innerHTML=providers.map(p=>'<article class="provider-card"><h3>'+e(p.name)+'</h3><span class="pill">'+(p.configured?(p.keyRequired?'키 등록됨':'키 없이 사용'):'키 등록 필요')+'</span><p>'+e(p.description)+'</p>'+(p.envName?'<code>'+e(p.envName)+'</code>':'')+'<a href="'+e(p.signup)+'" target="_blank" rel="noopener noreferrer">공식 서비스·활용 신청 ↗</a></article>').join('');}).catch(()=>{$('provider-cards').textContent='서버 연결 후 공개 API 설정 상태를 확인할 수 있습니다.';});
+ }finally{studioLoading=false;}
+}
+$('studio-access').onclick=async()=>{
+ if(!studioReady){$('studio-error').textContent='';$('studio-login').showModal();return;}
+ try{
+  await apiRequest('/api/studio/logout',{method:'POST'});
+  view('explore');document.querySelector('[data-view="data"]')?.remove();
+  $('data-view').outerHTML='<section id="data-view" hidden></section>';
+  studioReady=false;$('studio-access').textContent='운영자';
+  toast('운영자 공간에서 로그아웃했습니다.');
+ }catch(error){toast(error.message);}
+};
+$('studio-login-cancel').onclick=()=>$('studio-login').close();
+$('studio-login-form').onsubmit=async event=>{
+ event.preventDefault();
+ const button=$('studio-login-submit');if(button.disabled)return;
+ button.disabled=true;$('studio-error').textContent='';
+ try{
+  await apiRequest('/api/studio/session',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:$('studio-code').value})});
+  await loadStudio();$('studio-code').value='';$('studio-login').close();view('data');
+ }catch(error){$('studio-error').textContent=error.message;}
+ finally{button.disabled=false;}
+};
+const studioQuery=new URL(location.href).searchParams.get('studio')==='login';
+apiRequest('/api/studio/session').then(async status=>{
+ if(status.authenticated){await loadStudio();if(studioQuery)view('data');}
+ else if(studioQuery)$('studio-login').showModal();
+}).catch(()=>{if(studioQuery)$('studio-login').showModal();});
+
+// Motion fades in only once and does not trap keyboard navigation.
+if('IntersectionObserver' in window&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
+ const sidebar=document.querySelector('.sidebar');
+ const sidebarObserver=new IntersectionObserver(entries=>{
+  for(const entry of entries)if(entry.isIntersecting){entry.target.classList.add('is-visible');sidebarObserver.unobserve(entry.target);}
+ },{root:matchMedia('(max-width: 760px)').matches?null:sidebar,threshold:.12});
+ for(const [i,node] of [...sidebar.querySelectorAll('.brand,.workspace,.nav-caption,.nav-item,.collection,.sidebar-bottom')].entries()){
+  node.classList.add('scroll-reveal');node.style.setProperty('--reveal-delay',Math.min(i*50,350)+'ms');sidebarObserver.observe(node);
+ }
+ const contentObserver=new IntersectionObserver(entries=>{
+  for(const entry of entries)if(entry.isIntersecting){entry.target.classList.add('is-visible');contentObserver.unobserve(entry.target);}
+ },{threshold:.08,rootMargin:'0px 0px -30px 0px'});
+ const observe=()=>{
+  document.querySelectorAll('.hero .eyebrow,.hero h1,.hero-description,.palette-rail,.results-heading,.card,.section-top').forEach(node=>{
+   if(!node.classList.contains('scroll-reveal')){node.classList.add('scroll-reveal');contentObserver.observe(node);}
+  });
+ };
+ observe();
+ for(const parent of ['results','board-results']){
+  const target=$(parent);
+  if(target)new MutationObserver(observe).observe(target,{childList:true});
+ }
+}

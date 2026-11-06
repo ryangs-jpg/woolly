@@ -3,6 +3,8 @@ import {searchCommons,commonsQuery} from './commons.js';
 import {publicProviders,searchOpenverse,searchTourism} from './public-sources.js';
 import {safeUrl,labels} from '../public/core.js';
 import {inferenceStatus,generatePlan} from './inference.js';
+import {studioEnabled,verifyStudioCode,studioAuthorized,issueStudioCookie,clearStudioCookie} from './studio-access.js';
+import {studioMarkup} from './studio-template.js';
 export class ApiError extends Error{constructor(status,message){super(message);this.status=status;}}
 const sendJson=(data,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
 const text=(v,n=300)=>typeof v==='string'?v.slice(0,n):'';
@@ -34,8 +36,22 @@ export async function handleApi(request,env){
   if(!user)throw new ApiError(401,'ChatGPT로 로그인한 뒤 이용해 주세요.');
   if(!['GET','POST'].includes(request.method))throw new ApiError(405,'지원하지 않는 요청입니다.');
   if(request.method==='POST'&&(request.headers.get('origin')!==url.origin||request.headers.get('sec-fetch-site')==='cross-site'))throw new ApiError(403,'같은 사이트에서만 저장할 수 있습니다.');
+  if(url.pathname==='/api/studio/session'&&request.method==='GET')return sendJson({enabled:studioEnabled(env),authenticated:studioAuthorized(request,env)});
+  if(url.pathname==='/api/studio/session'&&request.method==='POST'){
+   if(!studioEnabled(env))throw new ApiError(503,'운영자 접근 설정이 필요합니다. Vercel 환경변수를 확인해 주세요.');
+   const body=await readBody(request);
+   if(!verifyStudioCode(body.code,env))throw new ApiError(403,'운영자 접근 코드가 올바르지 않습니다.');
+   const response=sendJson({authenticated:true});response.headers.set('Set-Cookie',issueStudioCookie(env));return response;
+  }
+  if(url.pathname==='/api/studio/logout'&&request.method==='POST'){
+   const response=sendJson({authenticated:false});response.headers.set('Set-Cookie',clearStudioCookie());return response;
+  }
+  if(url.pathname==='/api/studio/view'&&request.method==='GET'){
+   if(!studioAuthorized(request,env))throw new ApiError(403,'운영자 인증이 필요합니다.');
+   return sendJson({html:studioMarkup});
+  }
   if(url.pathname==='/api/status')return sendJson({version:'0.2.0',authenticated:true,storage:env.DB?'server_database':'unavailable',search:'commons_live',video_analysis:'not_connected',model_training:'not_executed'});
-  if(url.pathname==='/api/providers'&&request.method==='GET')return sendJson({providers:publicProviders(env)});
+  if(url.pathname==='/api/providers'&&request.method==='GET'){if(!studioAuthorized(request,env))throw new ApiError(403,'운영자 인증이 필요합니다.');return sendJson({providers:publicProviders(env)});}
   if(url.pathname==='/api/inference'&&request.method==='GET')return sendJson(inferenceStatus(env));
   if(url.pathname==='/api/plan'&&request.method==='POST'){
    try{return sendJson(await generatePlan(await readBody(request),env));}
