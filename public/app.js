@@ -1,4 +1,5 @@
 import {searchIntent} from './intent.js';
+import {initializeJejuMotion} from './motion.js';
 import {createSearchController} from './search-controller.js';
 import {buildReviewBundle} from './review.js';
 import {catalog} from './catalog.js';
@@ -207,3 +208,6 @@ if('IntersectionObserver' in window&&!matchMedia('(prefers-reduced-motion: reduc
   if(target)new MutationObserver(observe).observe(target,{childList:true});
  }
 }
+
+// Decorative motion is progressive enhancement; core navigation remains functional.
+initializeJejuMotion({doc:document,win:window});
