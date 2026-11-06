@@ -17,17 +17,17 @@ export function initMenuIndicator(doc,win){
   frame=0;
   const item=nav.querySelector('button.nav-item.active');
   if(!item){indicator.classList.remove('ready');return;}
-  const parent=nav.getBoundingClientRect();
-  const rect=item.getBoundingClientRect();
-  indicator.style.setProperty('--menu-x',Math.round(rect.left-parent.left)+'px');
-  indicator.style.setProperty('--menu-y',Math.round(rect.top-parent.top)+'px');
-  indicator.style.setProperty('--menu-width',Math.round(rect.width)+'px');
-  indicator.style.setProperty('--menu-height',Math.round(rect.height)+'px');
+  // Layout offsets ignore the scroll-reveal transform and hover movement.
+  indicator.style.setProperty('--menu-x',item.offsetLeft+'px');
+  indicator.style.setProperty('--menu-y',item.offsetTop+'px');
+  indicator.style.setProperty('--menu-width',item.offsetWidth+'px');
+  indicator.style.setProperty('--menu-height',item.offsetHeight+'px');
   indicator.classList.add('ready');
  };
  const queue=()=>{if(!frame)frame=win.requestAnimationFrame(measure);};
  const observe=new win.MutationObserver(mutations=>{
-  if(mutations.some(m=>m.type==='childList'||m.attributeName==='class'))queue();
+  if(mutations.some(m=>(m.type==='childList'&&m.target===nav)||
+   (m.type==='attributes'&&m.target?.matches?.('button.nav-item'))))queue();
  });
  observe.observe(nav,{subtree:true,childList:true,attributes:true,attributeFilter:['class']});
  win.addEventListener('resize',queue,{passive:true});
