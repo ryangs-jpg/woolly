@@ -1,0 +1,111 @@
+/* JEJU REF · Tangerine Atelier sidebar. Overrides legacy sidebar rules only. */
+.sidebar{
+ --gyuri-cream:#fff3de;--gyuri-tangerine:#f1a064;--gyuri-mint:#b9d0b5;
+ background:
+  radial-gradient(ellipse 230px 260px at 100% 5%,rgba(136,177,142,.20),transparent 76%),
+  radial-gradient(ellipse 210px 280px at 0% 65%,rgba(220,153,103,.08),transparent 72%),
+  linear-gradient(160deg,#193a3d 0%,#23443d 58%,#1d3738 100%);
+ border-right:1px solid rgba(255,252,237,.16);
+ scrollbar-width:thin;scrollbar-color:#d7bc986b transparent;
+ padding:29px 19px 23px;
+ overflow-x:hidden;
+}
+.sidebar::before{height:4px;background:linear-gradient(90deg,#8bb3ac 0 27%,#f2a568 27% 68%,#c47067 68% 84%,#bbc78e 84%)}
+.sidebar .brand{position:relative;display:flex;width:100%;gap:10px;align-items:center;text-decoration:none;min-height:47px;white-space:nowrap}
+.sidebar .brand-icon{position:relative;flex:0 0 36px;width:36px;height:36px;display:grid;place-items:center;line-height:1;border-radius:50%;border:1px solid #dfd7b4;background:#ffefcc14;color:#ffe3b8;font-size:28px;transform:rotate(-13deg);transition:background .3s ease,transform .4s cubic-bezier(.2,.7,.2,1)}
+.sidebar .brand:hover .brand-icon,.sidebar .brand:focus-visible .brand-icon{background:#ffdfb337;transform:rotate(0deg) scale(1.05)}
+.sidebar .brand-icon::after{content:"";position:absolute;width:6px;height:6px;border-radius:50%;background:#ef975b;top:-3px;right:0;box-shadow:0 0 0 3px #193a3d}
+.sidebar .brand-lockup{min-width:0;display:flex;flex:1;flex-direction:column;gap:0}
+.sidebar .brand-lockup strong{font-weight:750;letter-spacing:-.9px;font-size:20px;line-height:1.15;color:#fff6e8}
+.sidebar .brand-lockup small{font-family:'Noto Sans KR',sans-serif;font-size:7px;letter-spacing:1.35px;color:#b6d0c6;font-weight:600;line-height:1.8}
+.sidebar .beta{flex:none;margin-left:auto;padding:2px 5px;font-size:8px;color:#f5c898;border:1px solid #e9ad7669;background:#e9ad7610;letter-spacing:.75px}
+.sidebar .workspace{position:relative;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:0;isolation:isolate;min-height:123px;margin:30px 0 26px;padding:18px 11px 16px 16px;overflow:hidden;
+ border:1px solid #fff5d5;border-radius:19px;
+ background:linear-gradient(118deg,#ffeed8 0%,#f3dcc0 63%,#e6c9ad 100%);
+ box-shadow:0 15px 31px #0d272426,0 1px 1px #ffffff8a inset;color:#314c46}
+.sidebar .workspace::before{content:"";position:absolute;top:-20px;right:-20px;width:133px;height:133px;border:1px solid #fff7e978;border-radius:50%;z-index:-1}
+.sidebar .workspace::after{content:"";position:absolute;bottom:9px;left:16px;width:41px;height:2px;background:linear-gradient(90deg,#e58a50,transparent);border-radius:10px}
+.sidebar .workspace-kicker{font-size:8px;font-weight:800;letter-spacing:1.3px;color:#936349;line-height:1.45;margin-bottom:12px;max-width:155px}
+.sidebar .workspace strong{position:relative;z-index:1;font-size:18px;font-weight:750;letter-spacing:-.7px;line-height:1.4;color:#24453e;max-width:140px}
+.sidebar .workspace small{position:relative;z-index:1;font-size:11px;letter-spacing:-.2px;color:#5e6f61;line-height:1.8;max-width:142px}
+.sidebar .workspace-halo{pointer-events:none;position:absolute;right:2px;bottom:-26px;width:111px;height:111px;border-radius:50%;background:#efb978a3;filter:blur(5px)}
+.sidebar .workspace-mascot{pointer-events:none;position:absolute;right:-3px;bottom:0;width:80px;height:92px;object-fit:cover;object-position:50% 28%;border-radius:48% 0 17px 48%;box-shadow:-5px -4px 22px #ce8f6250;transform:rotate(-7deg);transition:transform .5s cubic-bezier(.2,.7,.2,1)}
+.sidebar .workspace:hover .workspace-mascot{transform:translateY(-6px) rotate(0deg)}
+.sidebar .nav-caption{display:flex;justify-content:space-between;align-items:center;gap:7px;padding:0 11px;color:#cadbd1;font-size:10px;letter-spacing:1.6px;font-weight:700;margin:0 0 10px}
+.sidebar .nav-caption span{color:#d1b79e;font-size:8px;letter-spacing:1.1px;white-space:nowrap;font-weight:500}
+.sidebar nav[aria-label="주 메뉴"]{display:flex;flex-direction:column;gap:7px;margin:0;min-width:0}
+.sidebar .nav-item{position:relative;display:flex;align-items:center;justify-content:flex-start;gap:10px;width:100%;min-width:0;min-height:67px;padding:9px 11px;border:1px solid transparent;border-radius:13px;font-size:15px;text-align:left;color:#e3eae0;transition:color .25s ease,transform .25s ease,background .25s ease}
+.sidebar .nav-item:hover,.sidebar .nav-item:focus-visible{transform:translateX(2px);color:#fff6eb;background:#ffffff0c}
+.sidebar .nav-item.active{background:#ffffff1b;border-color:#ffffff24;box-shadow:inset 3px 0 #ffaf77;color:#fff8ec}
+.sidebar .nav-glyph{display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;border-radius:10px;background:#ffffff16;border:1px solid #e6ead71e;font-size:24px;line-height:1;color:#f8d5aa;transition:background .3s ease,transform .35s cubic-bezier(.2,.75,.2,1)}
+.sidebar .nav-label{display:flex;flex-direction:column;flex:1;min-width:0;font-weight:700;line-height:1.28;letter-spacing:-.3px}
+.sidebar .nav-label small{display:block;margin-top:5px;font-size:10px;color:#b1c6bc;font-weight:400;line-height:1.4;letter-spacing:0}
+.sidebar .nav-item.active .nav-label small{color:#e6d5c0}
+.sidebar .nav-item.active .nav-glyph{background:#eaa36838;color:#ffcd9f;border-color:#f1c39a34}
+.sidebar .nav-arrow{flex:0 0 auto;margin-left:0;font-size:15px;color:#e9b78c}
+.sidebar .nav-item b{flex:0 0 auto;min-width:27px;min-height:26px;display:grid;place-items:center;padding:2px 6px;margin-left:0;border-radius:8px;background:#c9dac52c;color:#fff3e8;font-size:12px;font-weight:700}
+.sidebar nav.menu-motion .nav-item{background:transparent;border-color:transparent;box-shadow:none;z-index:1}
+.sidebar nav.menu-motion .nav-item:hover{background:#ffffff0a}
+.sidebar nav.menu-motion .nav-item.active{background:transparent;border-color:transparent;box-shadow:none;color:#fff8ec}
+.sidebar nav.menu-motion .nav-highlight{border-radius:13px;background:linear-gradient(93deg,#f1c59f26 0%,#ffffff0e 100%);border:1px solid #e3c5a536;box-shadow:inset 3px 0 #ffa86b,0 5px 17px #09292333}
+.sidebar nav.menu-motion .nav-item>.nav-glyph{display:grid}
+.sidebar .side-divider{border-top:1px solid #f1dfc021;margin:22px 11px 24px}
+.sidebar .sidebar-collections{display:grid;gap:3px}
+.sidebar .collection{position:relative;display:flex;width:100%;align-items:center;gap:11px;padding:10px 10px;border:1px solid transparent;border-radius:11px;min-height:56px;color:#d7e2d7;text-align:left;transition:background .25s ease,transform .25s ease,border-color .25s ease}
+.sidebar .collection:hover,.sidebar .collection:focus-visible{background:#ffffff11;border-color:#ffffff20;transform:translateX(2px)}
+.sidebar .collection .dot{position:relative;flex:0 0 auto;width:9px;height:9px;border-radius:50%;box-shadow:0 0 0 3px #ffffff12}
+.sidebar .collection .dot.blue{background:#71b7bd}.sidebar .collection .dot.stone{background:#d3ad9d}.sidebar .collection .dot.green{background:#bfc987}
+.sidebar .collection>span:not(.collection-arrow){display:flex;flex:1;min-width:0;flex-direction:column;font-size:13px;font-weight:550;line-height:1.4;letter-spacing:-.3px}
+.sidebar .collection small{font-size:8px;letter-spacing:1.2px;color:#a8c2b6;margin-top:4px;font-weight:500}
+.sidebar .collection-arrow{flex:0 0 auto;font-size:13px;color:#f4bc8b;opacity:0;transform:translate(-4px,4px);transition:transform .25s ease,opacity .25s ease}
+.sidebar .collection:hover .collection-arrow,.sidebar .collection:focus-visible .collection-arrow{opacity:1;transform:translate(0,0)}
+.sidebar .sidebar-bottom{padding:23px 0 0;margin-top:auto;border-top:0}
+.sidebar .story-card{position:relative;isolation:isolate;overflow:hidden;padding:15px 16px 16px;border:1px solid #e9c58f38;border-radius:17px;background:linear-gradient(128deg,#e0bc8e1b,#90b2a01b);box-shadow:0 8px 24px #0d292118}
+.sidebar .story-card::before{position:absolute;content:"";right:-43px;top:21px;width:115px;height:115px;border:1px solid #eab67b4d;border-radius:50%;pointer-events:none}
+.sidebar .story-topline{position:relative;display:flex;justify-content:space-between;align-items:center;color:#f1c692;font-weight:700;font-size:9px;letter-spacing:1.7px;margin-bottom:15px}
+.sidebar .story-sun{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#e9a26d24;color:#f4bc88;font-size:21px;transition:transform .4s ease}
+.sidebar .story-card:hover .story-sun{transform:rotate(26deg)}
+.sidebar .story-card strong{position:relative;display:block;font-family:'Noto Serif KR',serif;font-size:17px;font-weight:600;line-height:1.6;color:#fff4db;letter-spacing:-.6px}
+.sidebar .story-card p{position:relative;margin:10px 0 0;font-size:12px;line-height:1.75;color:#c5d8c8}
+.sidebar .story-leaf{position:absolute;right:15px;bottom:10px;color:#f5aa68;font-size:19px;opacity:.75}
+.sidebar .local-status{position:relative;display:flex;align-items:center;gap:8px;padding:15px 4px 0;margin:16px 0 0;border-top:1px solid #d7e2cd28;font-size:11px;line-height:1.5;color:#d5e8da}
+.sidebar .local-status::before{content:"";width:8px;height:8px;flex:0 0 8px;border-radius:50%;background:#b5d5c0;box-shadow:0 0 0 3px #92b7a02c}
+@media(max-width:1150px) and (min-width:761px){
+ .sidebar{padding:24px 14px 20px}
+ .sidebar .brand{gap:7px}.sidebar .brand-icon{flex-basis:30px;width:30px;height:30px;font-size:23px}
+ .sidebar .brand-lockup strong{font-size:17px}.sidebar .brand-lockup small{font-size:6px;letter-spacing:.8px}
+ .sidebar .beta{font-size:7px;padding:1px 3px}
+ .sidebar .workspace{padding:16px 9px 14px 13px;margin:24px 0 23px}
+ .sidebar .workspace strong{font-size:16px}.sidebar .workspace-mascot{width:65px;height:80px}
+ .sidebar .nav-item{gap:7px;padding:9px 8px}.sidebar .nav-glyph{flex-basis:30px;width:30px;height:30px}
+ .sidebar .nav-label{font-size:14px}.sidebar .nav-label small{font-size:9px}
+ .sidebar .collection{padding:9px 7px;gap:8px}.sidebar .collection>span:not(.collection-arrow){font-size:12px}
+ .sidebar .story-card{padding:13px}.sidebar .story-card strong{font-size:16px}
+}
+@media(max-width:760px){
+ .sidebar{position:relative;width:100%;padding:16px 18px 13px;overflow:visible}
+ .sidebar::before{height:3px}
+ .sidebar .brand{width:100%;min-height:40px;gap:9px}
+ .sidebar .brand-icon{flex-basis:30px;width:30px;height:30px;font-size:23px}
+ .sidebar .brand-lockup strong{font-size:18px}.sidebar .brand-lockup small{font-size:7px}
+ .sidebar .beta{margin-left:auto}
+ .sidebar .workspace,.sidebar .nav-caption,.sidebar .side-divider,.sidebar .sidebar-collections,.sidebar .sidebar-bottom{display:none!important}
+ .sidebar nav[aria-label="주 메뉴"]{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:14px}
+ .sidebar .nav-item{min-width:0;min-height:51px;padding:8px 9px;gap:7px;border-radius:11px;justify-content:center;font-size:13px}
+ .sidebar .nav-glyph,.sidebar nav.menu-motion .nav-item>.nav-glyph{display:grid;flex:0 0 28px;width:28px;height:28px;font-size:19px;border-radius:8px}
+ .sidebar .nav-label{font-size:13px;flex:0 1 auto}
+ .sidebar .nav-label small{display:none}
+ .sidebar .nav-arrow{font-size:13px}
+ .sidebar .nav-item b{min-width:22px;min-height:22px;padding:2px 4px;font-size:10px}
+ .sidebar .nav-item.active{border-color:#f0b57c40}
+ .sidebar nav.menu-motion .nav-highlight{border-radius:11px}
+}
+@media(max-width:370px){
+ .sidebar .brand-lockup strong{font-size:16px}.sidebar .brand-lockup small{font-size:6px}
+ .sidebar .nav-glyph,.sidebar nav.menu-motion .nav-item>.nav-glyph{display:none}
+ .sidebar .nav-item{gap:6px;padding:8px 7px}
+}
+@media(prefers-reduced-motion:reduce){
+ .sidebar .brand-icon,.sidebar .workspace-mascot,.sidebar .nav-item,.sidebar .nav-glyph,.sidebar .collection,.sidebar .collection-arrow,.sidebar .story-sun,.sidebar .collection .dot{transition:none!important;transform:none!important}
+ .sidebar .collection-arrow{opacity:1}
+}
