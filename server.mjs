@@ -15,7 +15,7 @@ const server=http.createServer(async(req,res)=>{try{
   const headers=new Headers();for(const [name,value]of Object.entries(req.headers))if(value&&!name.startsWith('oai-authenticated-'))headers.set(name,Array.isArray(value)?value.join(', '):value);
   headers.set('oai-authenticated-user-id','local-preview');
   const request=new Request(url,{method:req.method,headers,...(!['GET','HEAD'].includes(req.method)?{body:req,duplex:'half'}:{})});
-  const response=await handleApi(request,{DB:db});res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));return;
+  const response=await handleApi(request,{DB:db,SESSION_SECRET:process.env.SESSION_SECRET,STUDIO_ACCESS_KEY:process.env.STUDIO_ACCESS_KEY});res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));return;
  }
  const file=path.resolve(root,'.'+decodeURIComponent(url.pathname==='/'?'/index.html':url.pathname));
  if(!file.startsWith(root+path.sep)){res.writeHead(403);res.end();return;}
