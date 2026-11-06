@@ -1,7 +1,9 @@
+import {searchIntent} from './intent.js';
+import {createSearchController} from './search-controller.js';
 import {buildReviewBundle} from './review.js';
 import {catalog} from './catalog.js';
 import {apiRequest,RemoteStore} from './network.js';
-import {labels,escapeHtml as e,safeUrl,canDisplay,search,parseIntent,validateImport,draftPrompt} from './core.js';
+import {labels,escapeHtml as e,safeUrl,canDisplay,search,parseIntent,validateImport,draftPrompt,chatGptPrompt} from './core.js';
 const $=id=>document.getElementById(id);
 const uid=()=>globalThis.crypto?.randomUUID?.()||`local-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const key='jeju-ref-v2';
@@ -13,8 +15,9 @@ const legacy=JSON.parse(JSON.stringify(loaded));
 const relationLabel={verified:'제주 확인',reference:'연출 참고',proposal:'자체 제작 예제',unknown:'제주 관계 미검수'};
 const all=()=>[...new Map([...catalog,...state.imports,...state.assets,...state.live].map(a=>[a.id,a])).values()];
 const isLive=a=>['commons_live','openverse_live','tourapi_live'].includes(a.origin);
-state.provider='commons';
-let cloudReady=false,searchSequence=0;
+state.provider='auto';
+let cloudReady=false,searchSequence=0,composing=false;
+const searchControl=createSearchController({run:(append,context)=>runSearch(append,context)});
 const remote=new RemoteStore((kind,message)=>{const node=$('cloud-status');if(node){node.textContent=message;node.dataset.status=kind;}document.querySelector('.local-status').textContent='● '+message;});
 function snapshot(){return {title:state.title,saved:state.saved,imports:state.imports,assets:all().filter(a=>isLive(a)&&(state.saved.includes(a.id)||state.feedback.some(f=>f.asset_id===a.id))).sort((a,b)=>Number(state.saved.includes(b.id))-Number(state.saved.includes(a.id))).slice(0,300),feedback:state.feedback};}
 let toastTimer;
@@ -29,34 +32,74 @@ function visual(a){
  if(a.visual==='wipe')return '<div class="visual wipe-visual"><strong>LAND / FORM</strong><span class="motion-label">ORIGINAL DEMO / CIRCULAR WIPE</span></div>';
  return '<div class="visual fallback-visual">출처 링크 레퍼런스<span>미리보기 미등록</span></div>';
 }
-function card(a){const saved=state.saved.includes(a.id);return `<article class="card"><div class="card-visual"><button class="open-card" data-detail="${e(a.id)}" aria-label="${e(a.title)} 상세 보기">${visual(a)}</button><span class="media-badge">${e(labels[a.type])}</span><button class="save-button ${saved?'saved':''}" data-save="${e(a.id)}" aria-label="${e(a.title)} ${saved?'저장 해제':'저장'}" aria-pressed="${saved}">${saved?'✓':'+'}</button></div><div class="card-info"><div class="card-topline"><span>${e(a.source)}</span><span class="relation ${e(a.jeju)}">${e(relationLabel[a.jeju])}</span></div><button class="card-title" data-detail="${e(a.id)}"><h3>${e(a.title)}</h3></button><div class="tag-row">${a.tags.slice(0,3).map(t=>`<span class="tag">${e(t)}</span>`).join('')}</div>${a.matches?.length?`<p class="match-reason">연결된 키워드 · ${e(a.matches.join(', '))}</p>`:''}<div class="credit-line">${e(a.origin==='original_demo'?'직접 만든 모션 예제':a.creator+' · '+a.license)}</div></div></article>`;}
+function card(a){const saved=state.saved.includes(a.id);return `<article class="card"><div class="card-visual"><button class="open-card" data-detail="${e(a.id)}" aria-label="${e(a.title)} 상세 보기">${visual(a)}</button><span class="media-badge">${e(labels[a.type])}</span><button class="save-button ${saved?'saved':''}" data-save="${e(a.id)}" aria-label="${e(a.title)} ${saved?'저장 해제':'저장'}" aria-pressed="${saved}">${saved?'✓ 담았어요':'담기'}</button></div><div class="card-info"><div class="card-topline"><span>${e(a.source)}</span><span class="relation ${e(a.jeju)}">${e(relationLabel[a.jeju])}</span></div><button class="card-title" data-detail="${e(a.id)}"><h3>${e(a.title)}</h3></button><div class="tag-row">${a.tags.slice(0,3).map(t=>`<span class="tag">${e(t)}</span>`).join('')}</div>${a.matches?.length?`<p class="match-reason">연결된 키워드 · ${e(a.matches.join(', '))}</p>`:''}<div class="credit-line">${e(a.origin==='original_demo'?'직접 만든 모션 예제':a.creator+' · '+a.license)}</div></div></article>`;}
 function imageErrors(){document.querySelectorAll('img').forEach(img=>{img.onerror=()=>{img.hidden=true;const fallback=img.nextElementSibling;if(fallback?.classList.contains('image-fallback'))fallback.hidden=false;};if(img.complete&&img.naturalWidth===0)img.onerror();});}
 function empty(title,body){return `<div class="empty"><h3>${e(title)}</h3><p>${e(body)}</p><button class="button" data-reset>전체 레퍼런스 보기 ↗</button></div>`;}
-function results(){return state.mode==='live'&&state.hasSearched?search(state.live,{...state,query:''}):search(all().filter(a=>!isLive(a)||state.saved.includes(a.id)),state);}
-function renderTabs(){const publicItems=(state.mode==='live'&&state.hasSearched?state.live:all()).filter(x=>x.status==='published');$('type-tabs').innerHTML=Object.entries(labels).map(([type,label])=>`<button data-type="${type}" class="${type===state.type?'active':''}" aria-pressed="${type===state.type}">${label}<small>${type==='all'?publicItems.length:publicItems.filter(x=>x.type===type).length}</small></button>`).join('');}
-function renderResults(){const items=results();$('result-count').textContent=String(items.length).padStart(2,'0');$('results-title').firstChild.textContent=state.mode==='live'&&state.hasSearched?'공개 API 검색 결과 ':state.query?'목적에 연결된 레퍼런스 ':'새로운 시선을 발견하세요 ';$('results').innerHTML=state.loading?'<div class="empty loading-result"><h3>공개 API에서 자료를 찾고 있습니다</h3><p>원본 주소와 제작자·라이선스 정보를 함께 가져옵니다.</p></div>':state.searchError?empty('검색 연결을 확인해 주세요',state.searchError):items.length?items.map(card).join(''):empty('조건에 맞는 자료가 아직 없습니다',state.type==='video'||state.type==='director'?'이번 연결은 이미지 검색입니다. 영상·감독 자료 분석은 아직 연결하지 않았습니다.':'검색어 또는 필터를 바꿔보세요. 출처마다 검색 범위와 이용 조건이 다릅니다.');$('more-results').hidden=state.mode!=='live'||state.nextOffset===null||state.loading||!!state.searchError;const status=$('search-status');status.textContent=state.loading?'실시간 검색 중…':state.searchError?'검색 실패 · 아래 안내를 확인하세요':state.mode==='live'&&state.hasSearched?`실제 검색어: ${state.effectiveQuery} · ${state.searchCached?'5분 이내 캐시':'외부 API 응답'} · 제주 관계 미검수`:'기본 레퍼런스 · 목적을 입력하면 선택한 공개 API에서 자료를 검색합니다';renderTabs();renderIntent();imageErrors();}
-function renderIntent(){const intent=parseIntent(state.query),parts=[...intent.subjects,...intent.styles,...intent.media,...(intent.duration?[intent.duration]:[])];$('intent').hidden=!state.query;$('intent').textContent=parts.length?'목적에서 찾은 단서: '+parts.join(' · ')+' / 태그 기반 해석':'입력한 문장과 카탈로그 태그를 비교합니다. AI 의도 분석은 미연결 상태입니다.';}
-function recordImpressions(){state.searchId=uid();state.impressions=results().map((a,i)=>({search_id:state.searchId,asset_id:a.id,query:state.query,filters:{type:state.type,relation:state.relation,include_demos:state.includeDemos},rank:i+1,retrieval_version:state.mode==='live'&&state.hasSearched?state.provider+'-api-v1':'tags-v1',effective_query:state.effectiveQuery,shown_at:new Date().toISOString()}));}
-function renderBoard(){const items=all().filter(a=>state.saved.includes(a.id)&&a.status==='published');$('board-results').innerHTML=items.length?items.map(card).join(''):empty('첫 번째 레퍼런스를 담아보세요','마음에 드는 카드의 + 버튼을 누르면 이 보드에 저장됩니다.');$('saved-summary').textContent=`${items.length}개의 레퍼런스 · ${remote.ready?'브라우저 세션별 서버 저장':'브라우저 임시 보관'}`;$('board-title').value=state.title;$('board-count').textContent=items.length;imageErrors();}
+function basicResults(filters=state){
+ const library=all().filter(a=>!isLive(a)||state.saved.includes(a.id));
+ const matched=search(library,filters);
+ return matched.length||state.mode==='library'?matched:search(library,{...filters,query:''});
+}
+function results(filters=state){
+ if(state.mode!=='live'||!state.hasSearched||!state.live.length)return basicResults(filters);
+ const extras=search(all().filter(a=>!isLive(a)&&a.type!=='image'),filters);
+ return [...search(state.live,{...filters,query:''}),...extras];
+}
+function renderTabs(){const items=results({...state,type:'all'});$('type-tabs').innerHTML=Object.entries(labels).filter(([type])=>type==='all'||type===state.type||items.some(a=>a.type===type)).map(([type,label])=>`<button data-type="${type}" class="${type===state.type?'active':''}" aria-pressed="${type===state.type}">${label}</button>`).join('');}
+function renderResults(){
+ const items=results(),live=state.mode==='live'&&state.hasSearched&&state.live.length>0;
+ $('result-count').textContent=String(items.length);
+ $('results-title').firstChild.textContent=live?(state.broadened?'함께 살펴볼 제주 자료 ':'찾은 참고자료 '):state.query?'먼저 살펴볼 참고자료 ':'이런 제주 자료가 있어요 ';
+ $('results').innerHTML=items.length?items.map(card).join(''):empty('이 조건의 자료는 아직 없어요','다른 종류를 선택하거나 아래 버튼으로 전체 자료를 볼 수 있어요.');
+ $('more-results').hidden=state.mode!=='live'||state.nextOffset===null||state.loading||!!state.searchError;
+ $('search-status').textContent=state.loading?'새 자료를 찾고 있어요. 아래 자료부터 살펴보세요.':state.searchError?'새 자료를 가져오지 못했어요. 기본 자료는 계속 볼 수 있어요.':live?(state.broadened?'정확히 맞는 자료가 적어 제주 자료로 범위를 넓혔어요.':state.searchCached?'최근 5분 안에 찾은 자료예요. 사진을 누르면 자세히 볼 수 있어요.':'새 자료를 찾았어요. 마음에 드는 자료를 담아보세요.')+(state.partial?' 일부 출처는 응답하지 않았어요.':''):state.query?'기본 참고자료예요. 원하는 사진을 눌러 살펴보세요.':'짧게 적어도 괜찮아요. 입력하면 자동으로 찾아드려요.';
+ $('retry-search').hidden=!state.searchError;
+ $('search-technical').textContent=state.effectiveQuery?'실제 검색어: '+state.effectiveQuery+' · 제주 관련성은 원본에서 확인해 주세요.':'공개 이미지·관광 자료를 검색합니다. 영상 분석은 아직 지원하지 않습니다.';
+ renderTabs();renderIntent();imageErrors();
+}
+function renderIntent(){const intent=searchIntent(state.query);$('intent').hidden=!state.query||!intent.recognized;$('intent').textContent=intent.inferred.length?'이런 방향으로 찾아볼게요: 제주 '+intent.inferred.join(' · ')+(intent.media.length?' · '+intent.media.join(' · '):''):'찾는 내용: '+[...intent.subjects,...intent.media,...intent.styles].join(' · ');}
+function recordImpressions(){state.searchId=uid();state.impressions=results().map((a,i)=>({search_id:state.searchId,asset_id:a.id,query:state.query,filters:{type:state.type,relation:state.relation,include_demos:state.includeDemos},rank:i+1,retrieval_version:isLive(a)&&state.mode==='live'&&state.hasSearched?state.provider+'-simple-v1':'purpose-tags-v2',effective_query:state.effectiveQuery,shown_at:new Date().toISOString()}));}
+function renderBoard(){const items=all().filter(a=>state.saved.includes(a.id)&&a.status==='published');$('board-results').innerHTML=items.length?items.map(card).join(''):empty('첫 번째 레퍼런스를 담아보세요','마음에 드는 카드의 + 버튼을 누르면 이 보드에 저장됩니다.');$('saved-summary').textContent=`${items.length}개의 자료를 담았어요 · ${remote.ready?'이 브라우저에서 다시 볼 수 있어요':'이 브라우저에 임시로 보관 중'}`;$('chatgpt-copy').disabled=!items.length;$('chatgpt-copy').textContent=items.length?'ChatGPT용 내용 복사':'자료를 먼저 담아주세요';$('board-title').value=state.title;$('board-count').textContent=items.length;imageErrors();}
 function renderData(){renderReview();const items=all();const stats=[['등록 자료',items.length],['검수 대기',items.filter(a=>a.status==='review').length],['명시적 피드백',state.feedback.length],['모델 학습 실행',0]];$('data-stats').innerHTML=stats.map(([label,value])=>`<div class="stat"><small>${label}</small><strong>${value}</strong></div>`).join('');$('source-rows').innerHTML=items.map(a=>`<tr><td>${a.url&&safeUrl(a.url)?`<a href="${e(a.url)}" target="_blank" rel="noopener noreferrer">${e(a.title)} ↗</a>`:e(a.title)}</td><td>${e(labels[a.type])}</td><td>${a.rights.display==='allowed'?'확인':'미확인'}</td><td>미확인</td><td>${a.status==='published'?'탐색 가능':'검수 대기'}</td><td>${a.origin==='user_import'?`<button class="button small" data-delete="${e(a.id)}">삭제</button>`:'기본 자료'}</td></tr>`).join('');}
 function render(){renderResults();renderBoard();renderData();}
-function view(name){state.view=name;for(const v of ['explore','board','data'])$(v+'-view').hidden=v!==name;document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===name));$('breadcrumb').textContent={explore:'레퍼런스 탐색',board:'나의 보드',data:'데이터 스튜디오'}[name];window.scrollTo({top:0});}
-function toggleSave(id){if(!all().some(a=>a.id===id&&a.status==='published'))return;const present=state.saved.includes(id);state.saved=present?state.saved.filter(x=>x!==id):[...state.saved,id];persist();render();if(state.detailId===id&&$('detail-dialog').open)detail(id);toast(present?'보드에서 제거했습니다.':'나의 보드에 저장했습니다.');}
+function view(name){state.view=name;if(name==='board'&&!$('plan-query').value.trim()&&state.query)$('plan-query').value=state.query;for(const v of ['explore','board','data'])$(v+'-view').hidden=v!==name;document.querySelectorAll('[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===name));$('breadcrumb').textContent={explore:'자료 찾기',board:'담은 자료',data:'데이터 스튜디오'}[name];window.scrollTo({top:0});}
+function toggleSave(id){$('chatgpt-transfer').hidden=true;if(!all().some(a=>a.id===id&&a.status==='published'))return;const present=state.saved.includes(id);state.saved=present?state.saved.filter(x=>x!==id):[...state.saved,id];persist();render();if(state.detailId===id&&$('detail-dialog').open)detail(id);toast(present?'보드에서 제거했습니다.':'나의 보드에 저장했습니다.');}
 function detail(id){const a=all().find(x=>x.id===id);if(!a)return;state.detailId=id;const previous=state.feedback.findLast(x=>x.asset_id===id&&x.query===(state.query||$('plan-query').value.trim()));$('detail-content').innerHTML=`<div class="detail-body"><div class="detail-preview">${visual(a)}</div><div class="palette">${(a.colors||[]).map(c=>`<i style="background:${/^#[\da-f]{6}$/i.test(c)?c:'#ddd'}" title="${e(c)}"></i>`).join('')}</div><span class="tag">${e(labels[a.type])} · ${e(relationLabel[a.jeju])}</span><h2>${e(a.title)}</h2><p class="detail-note">${e(a.note)}</p>${a.description?`<p><strong>원본 메타데이터 설명</strong><br>${e(a.description)}</p>`:''}<dl class="detail-meta"><dt>원본 제목</dt><dd>${e(a.originalTitle||a.title)}</dd><dt>제작자·출처</dt><dd>${e(a.creator)} / ${e(a.source)}</dd><dt>이용 조건</dt><dd>${a.licenseUrl&&safeUrl(a.licenseUrl)?`<a href="${e(a.licenseUrl)}" target="_blank" rel="noopener noreferrer">${e(a.license)} ↗</a>`:e(a.license)}</dd><dt>확인 기록</dt><dd>${e(a.checkedAt)} · ${e(a.provenance)}</dd><dt>학습 권한</dt><dd>미확인 · 모델 학습에 사용하지 않음</dd><dt>분석 상태</dt><dd>${isLive(a)?'메타데이터 자동 수집 / 시각 분석·사람 검수 미실행':'검수 태그·기획 제안 / AI 자동 분석 미연결'}</dd></dl>${a.type==='font'?'<p class="font-status" id="font-status">서체 로드 상태 확인 중…</p>':''}<div class="detail-action">${a.url&&safeUrl(a.url)?`<a class="button dark" href="${e(a.url)}" target="_blank" rel="noopener noreferrer">원본 출처 보기 ↗</a>`:''}<button class="button" data-save="${e(a.id)}">${state.saved.includes(a.id)?'보드에서 제거':'나의 보드에 저장'}</button></div><div class="feedback"><span>이 자료가 목적에 맞나요?</span><p>평가 목적: ${e(state.query||$('plan-query').value.trim()||'제작 목적을 먼저 입력해 주세요')}</p><button class="button small ${previous?.kind==='explicit_relevant'?'selected':''}" data-feedback="explicit_relevant" data-id="${e(id)}">관련 있음</button><button class="button small ${previous?.kind==='explicit_irrelevant'?'selected':''}" data-feedback="explicit_irrelevant" data-id="${e(id)}">관련 없음</button><label class="sr-only" for="feedback-dimension">평가 기준</label><select id="feedback-dimension" class="button small"><option value="purpose">목적 전체</option><option value="jeju">제주 소재</option><option value="color">색감</option><option value="motion">움직임</option><option value="typography">글자</option></select></div></div>`;if(!$('detail-dialog').open)$('detail-dialog').showModal();imageErrors();if(a.type==='font'){const family=a.visual==='serif'?'Noto Serif KR':'Noto Sans KR';document.fonts.load(`16px "${family}"`,'제주').then(faces=>{if(state.detailId===id&&$('font-status'))$('font-status').textContent=faces.length?'미리보기 서체 로드됨 · 전체 한글 글리프 검증은 별도 필요':'서체 미로드 · 시스템 대체 서체로 표시 중';}).catch(()=>{if($('font-status'))$('font-status').textContent='외부 서체 미로드 · 시스템 대체 서체로 표시 중';});}}
 function download(name,data,mime='application/json;charset=utf-8'){const blob=new Blob([typeof data==='string'?data:JSON.stringify(data,null,2)],{type:mime}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
-async function submitSearch(append=false){const query=$('query').value.trim();state.query=query;view('explore');state.searchError='';if(state.mode==='library'||!query){state.hasSearched=false;state.loading=false;recordImpressions();renderResults();return;}const sequence=++searchSequence;state.loading=true;state.hasSearched=true;const offset=append?state.nextOffset:0;if(!append){state.live=[];state.nextOffset=null;}renderResults();try{const result=await apiRequest('/api/search?q='+encodeURIComponent(query)+'&offset='+(offset||0)+'&provider='+state.provider);if(sequence!==searchSequence)return;state.live=[...new Map([...(append?state.live:[]),...result.results].map(a=>[a.id,a])).values()];state.effectiveQuery=result.effectiveQuery;state.nextOffset=result.nextOffset;state.searchCached=result.cached;recordImpressions();}catch(error){if(sequence!==searchSequence)return;state.searchError=error.message;}finally{if(sequence===searchSequence){state.loading=false;renderResults();}}}
+function submitSearch(append=false){return searchControl.now(append);}
+async function runSearch(append=false,{signal,isCurrent}){
+ const query=$('query').value.trim();state.query=query;state.searchError='';
+ if(state.mode==='library'||!query){state.hasSearched=false;state.loading=false;state.live=[];state.nextOffset=null;state.effectiveQuery='';recordImpressions();renderResults();return;}
+ state.loading=true;state.hasSearched=true;const offset=append?state.nextOffset:0;
+ if(!append){state.live=[];state.nextOffset=null;state.effectiveQuery='';state.broadened=false;state.partial=false;}
+ renderResults();
+ try{const result=await apiRequest('/api/search?q='+encodeURIComponent(query)+'&offset='+(offset||0)+'&provider='+state.provider,{signal});
+  if(!isCurrent())return;
+  state.live=[...new Map([...(append?state.live:[]),...result.results].map(a=>[a.id,a])).values()];state.effectiveQuery=result.effectiveQuery;state.nextOffset=result.nextOffset;state.searchCached=result.cached;state.broadened=result.broadened;state.partial=result.partial;
+ }catch(error){if(!isCurrent())return;state.searchError=error.message;}
+ finally{if(isCurrent()){state.loading=false;recordImpressions();renderResults();}}
+}
+function onQueryInput(){
+ searchControl.cancel();state.query=$('query').value.trim();state.live=[];state.hasSearched=false;state.loading=false;state.searchError='';state.nextOffset=null;state.effectiveQuery='';state.type='all';
+ recordImpressions();renderResults();
+ if(!composing&&state.query)searchControl.schedule(false);
+}
 document.addEventListener('click',event=>{const b=event.target.closest('button');if(!b)return;
  if(b.dataset.view)view(b.dataset.view);
- if(b.dataset.preset){$('query').value=b.dataset.preset;state.type='all';state.relation='all';$('relation').value='all';submitSearch();}
+ if(b.dataset.preset){view('explore');$('query').value=b.dataset.preset;state.type='all';state.relation='all';$('relation').value='all';submitSearch();}
  if(b.dataset.type){state.type=b.dataset.type;recordImpressions();renderResults();}
  if(b.dataset.detail)detail(b.dataset.detail);
  if(b.dataset.save){state.draft='';$('draft-text').value='';$('draft-section').hidden=true;toggleSave(b.dataset.save);}
  if(b.dataset.close)$(b.dataset.close).close();
- if(b.hasAttribute('data-reset')){searchSequence++;state.loading=false;state.searchError='';state.hasSearched=false;state.nextOffset=null;state.query='';state.type='all';state.relation='all';state.includeDemos=true;$('query').value='';$('relation').value='all';$('include-demos').checked=true;recordImpressions();renderResults();view('explore');}
+ if(b.hasAttribute('data-reset')){searchControl.cancel();searchSequence++;state.loading=false;state.searchError='';state.hasSearched=false;state.nextOffset=null;state.query='';state.type='all';state.relation='all';state.includeDemos=true;$('query').value='';$('relation').value='all';$('include-demos').checked=true;recordImpressions();renderResults();view('explore');}
  if(b.dataset.feedback){const feedbackQuery=state.query||$('plan-query').value.trim();if(!feedbackQuery){toast('검색 목적 또는 보드의 제작 목적을 먼저 입력해 주세요.');return;}const id=b.dataset.id,impression=state.impressions.find(x=>x.asset_id===id&&x.query===feedbackQuery)||{search_id:state.searchId,asset_id:id,query:feedbackQuery,rank:null,retrieval_version:'tags-v1',context:state.view};state.feedback=state.feedback.filter(x=>!(x.search_id===impression.search_id&&x.asset_id===id));state.feedback.push({...impression,id:uid(),kind:b.dataset.feedback,dimension:$('feedback-dimension').value,created_at:new Date().toISOString(),label_review_status:'pending',global_learning_consent:false});persist();renderData();detail(id);toast('평가를 저장했습니다. 학습에는 자동 사용하지 않습니다.');}
  if(b.dataset.delete){const id=b.dataset.delete;state.imports=state.imports.filter(x=>x.id!==id);state.saved=state.saved.filter(x=>x!==id);state.feedback=state.feedback.filter(x=>x.asset_id!==id);state.draft='';$('draft-text').value='';$('draft-section').hidden=true;persist();render();toast('등록 자료와 연결된 로컬 기록을 삭제했습니다.');}
 });
-$('search-form').addEventListener('submit',ev=>{ev.preventDefault();submitSearch();});$('query').addEventListener('keydown',ev=>{if(ev.key==='Enter'&&(ev.ctrlKey||ev.metaKey)){ev.preventDefault();submitSearch();}});
+$('search-form').addEventListener('submit',ev=>{ev.preventDefault();if(!composing)submitSearch();});
+$('query').addEventListener('input',onQueryInput);
+$('query').addEventListener('compositionstart',()=>{composing=true;searchControl.cancel();});
+$('query').addEventListener('compositionend',()=>{composing=false;onQueryInput();});
+$('retry-search').onclick=()=>submitSearch();
 $('relation').addEventListener('change',ev=>{state.relation=ev.target.value;recordImpressions();renderResults();});$('include-demos').addEventListener('change',ev=>{state.includeDemos=ev.target.checked;recordImpressions();renderResults();});$('layout').onclick=()=>{$('results').classList.toggle('large');};
 $('board-title').addEventListener('input',ev=>{state.title=ev.target.value;persist();});
 $('export-board').onclick=()=>download('jeju-reference-board.json',{schema_version:'1.0',title:state.title,exported_at:new Date().toISOString(),assets:all().filter(a=>state.saved.includes(a.id)),draft:state.draft,training_executed:false});
@@ -69,7 +112,7 @@ for(const id of ['detail-dialog','source-dialog'])$(id).addEventListener('click'
 recordImpressions();render();
 $('more-results').onclick=()=>submitSearch(true);
 $('retry-sync').onclick=()=>remote.retry();
-document.querySelectorAll('[data-mode]').forEach(button=>button.onclick=()=>{state.mode=button.dataset.mode;searchSequence++;state.loading=false;state.hasSearched=false;state.searchError='';state.nextOffset=null;document.querySelectorAll('[data-mode]').forEach(b=>{b.classList.toggle('active',b===button);b.setAttribute('aria-pressed',String(b===button));});renderResults();});
+document.querySelectorAll('[data-mode]').forEach(button=>button.onclick=()=>{state.mode=button.dataset.mode;searchControl.cancel();searchSequence++;state.loading=false;state.hasSearched=false;state.searchError='';state.nextOffset=null;document.querySelectorAll('[data-mode]').forEach(b=>{b.classList.toggle('active',b===button);b.setAttribute('aria-pressed',String(b===button));});submitSearch();});
 $('migrate-local').onclick=()=>{state.saved=[...new Set([...state.saved,...(legacy.saved||[])])];state.imports=[...new Map([...state.imports,...(legacy.imports||[])].map(a=>[a.id,a])).values()];state.assets=[...new Map([...state.assets,...(legacy.assets||[])].map(a=>[a.id,a])).values()];state.feedback=[...new Map([...state.feedback,...(legacy.feedback||[])].map(a=>[a.id,a])).values()];if(!state.title||state.title==='첫 번째 제주 프로젝트')state.title=legacy.title||state.title;$('migration-notice').hidden=true;persist();render();toast('브라우저 자료를 보드에 합쳤습니다. 서버 저장 상태를 확인하세요.');};
 $('main').inert=true;$('add-source').disabled=true;
 const bootstrap=remote.initialize();
@@ -85,3 +128,14 @@ $('generate-plan').onclick=async()=>{if(generatingPlan)return;const query=$('pla
 function renderReview(){const bundle=buildReviewBundle(all(),state.feedback),s=bundle.summary;$('review-summary').innerHTML=[['검수 행',s.rows],['관련 있음',s.positive],['관련 없음',s.negative],['양쪽 평가가 있는 목적',s.comparable_queries]].map(([label,value])=>'<div class="stat"><small>'+e(label)+'</small><strong>'+value+'</strong></div>').join('');$('review-quality').textContent='출처 누락 '+s.missing_sources+'건 · 상충 평가 '+s.conflicts+'건 · 연결 그룹 '+s.groups+'개 · 학습 준비 완료 0건';$('review-queries').innerHTML=bundle.queries.length?'<div class="table-wrap"><table><thead><tr><th>평가 목적</th><th>기준</th><th>관련 있음</th><th>관련 없음</th><th>상태</th></tr></thead><tbody>'+bundle.queries.slice(0,10).map(q=>'<tr><td>'+e(q.query||'목적 미입력')+'</td><td>'+e(({purpose:'목적 전체',jeju:'제주 소재',color:'색감',motion:'움직임',typography:'글자'})[q.dimension]||q.dimension)+'</td><td>'+q.positive+'</td><td>'+q.negative+'</td><td>'+(q.conflicts?'상충 검토':q.positive&&q.negative&&q.query?'라벨 검수 대기':'비교 자료 보강')+'</td></tr>').join('')+'</tbody></table></div><p class="form-note">최대 10개 목적 표시 · 전체 기록은 내보내기에 포함됩니다.</p>':'<p>제작 목적을 입력하고 자료 상세에서 관련 있음·없음을 평가하면 검수 목록이 만들어집니다.</p>';}
 $('export-review').onclick=()=>{const b=buildReviewBundle(all(),state.feedback);if(!b.rows.length){toast('목적을 입력하고 자료를 평가해 주세요.');return;}download('jeju-training-review.json',{...b,exported_at:new Date().toISOString()});};
 $('export-review-jsonl').onclick=()=>{const b=buildReviewBundle(all(),state.feedback);if(!b.rows.length){toast('목적을 입력하고 자료를 평가해 주세요.');return;}download('jeju-training-review.jsonl',b.rows.map(r=>JSON.stringify(r)).join('\n')+'\n','application/x-ndjson;charset=utf-8');};
+
+$('chatgpt-copy').onclick=async()=>{
+ const items=all().filter(a=>state.saved.includes(a.id)&&a.status==='published');if(!items.length){toast('마음에 드는 자료의 담기를 눌러주세요.');return;}
+ const prompt=chatGptPrompt(items,$('plan-query').value.trim()||state.query);
+ $('chatgpt-text').value=prompt;$('chatgpt-transfer').hidden=false;
+ try{await navigator.clipboard.writeText(prompt);$('chatgpt-help').textContent='복사했어요. ChatGPT를 열고 입력창에 붙여넣으세요.';}catch{$('chatgpt-help').textContent='자동 복사가 안 되었어요. 아래 내용을 선택해 복사해 주세요.';$('chatgpt-text').focus();$('chatgpt-text').select();}
+ if(items.length>12)$('chatgpt-help').textContent+=' 먼저 담은 12개 자료가 포함됐어요.';
+ $('chatgpt-transfer').scrollIntoView({behavior:'smooth',block:'nearest'});
+};
+
+$('plan-query').addEventListener('input',()=>{$('chatgpt-transfer').hidden=true;});
