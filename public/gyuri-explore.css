@@ -1,0 +1,107 @@
+/* Gyuri's reference adventure: clicks reveal the 9-frame transparent GIF. */
+.mascot-card.mascot-trigger {
+ appearance:none;
+ cursor:pointer;
+ padding:0;
+ text-align:left;
+ color:#49382E;
+ transition:transform .35s cubic-bezier(.2,.7,.2,1),box-shadow .3s ease,border-color .3s ease;
+}
+.mascot-card.mascot-trigger:hover {
+ transform:rotate(0deg) translateY(-5px);
+ border-color:#DEAA78;
+ box-shadow:0 19px 38px rgba(133,77,41,.18);
+}
+.mascot-card.mascot-trigger:focus-visible {
+ outline:3px solid #A64618;
+ outline-offset:5px;
+}
+.mascot-card.mascot-trigger .mascot-caption {
+ flex:none;
+ display:flex;
+ flex-direction:column;
+ min-height:44px;
+ padding:6px 10px 7px;
+ color:#49382E;
+ line-height:1.2;
+}
+.mascot-card.mascot-trigger .mascot-caption b { font-size:11px; }
+.mascot-card.mascot-trigger .mascot-caption small {
+ margin-top:3px;
+ font-size:9px;
+ color:#815135;
+}
+.gyuri-dialog {
+ width:min(430px,calc(100vw - 30px));
+ max-height:min(90vh,760px);
+ padding:0;
+ overflow:auto;
+ border:1px solid #E3C09F;
+ border-radius:24px;
+ color:#45382F;
+ background:linear-gradient(145deg,#FFFCF7,#FFF1E0);
+ box-shadow:0 24px 80px rgba(77,49,32,.24);
+}
+.gyuri-dialog::backdrop { background:rgba(71,50,35,.55);backdrop-filter:blur(5px); }
+.gyuri-dialog-top {
+ display:flex;
+ align-items:center;
+ justify-content:space-between;
+ gap:10px;
+ padding:13px 18px 10px 24px;
+ font-size:10px;
+ font-weight:700;
+ letter-spacing:1.4px;
+ color:#85512F;
+ border-bottom:1px solid #EBD1B5;
+}
+.gyuri-dialog-body { text-align:center;padding:23px 24px 22px; }
+.gyuri-dialog h2 {
+ color:#45382F;
+ font-family:"Noto Serif KR",serif;
+ font-size:clamp(22px,5vw,29px);
+ letter-spacing:-1px;
+ margin:10px 0 5px;
+}
+.gyuri-dialog-body>p { color:#715B4A;font-size:13px;line-height:1.7;margin:0; }
+.gyuri-dialog .gyuri-animation {
+ display:block;
+ width:min(100%,330px);
+ height:auto;
+ aspect-ratio:421/415;
+ object-fit:contain;
+ margin:4px auto;
+ background:transparent;
+}
+.gyuri-dialog .gyuri-dialog-note {
+ display:inline-block;
+ margin:4px auto 0;
+ padding:8px 15px;
+ border-radius:99px;
+ background:#FFF0D9;
+ border:1px solid #ECCBA8;
+ color:#80502F;
+ font-size:12px;
+}
+@media(max-width:1150px){
+ .mascot-card.mascot-trigger {
+  position:relative;
+  display:flex;
+  right:auto;
+  top:auto;
+  width:170px;
+  height:212px;
+  margin:17px 0 3px 2px;
+  transform:rotate(2deg);
+ }
+ .mascot-card.mascot-trigger:hover { transform:rotate(0deg) translateY(-3px); }
+}
+@media(max-width:760px){
+ .mascot-card.mascot-trigger { width:148px;height:195px; }
+ .mascot-card.mascot-trigger img { height:148px; }
+ .gyuri-dialog-body { padding:20px 14px 22px; }
+}
+@media(prefers-reduced-motion:reduce){
+ .mascot-card.mascot-trigger,.gyuri-dialog { transition:none!important; }
+ .mascot-card.mascot-trigger:hover { transform:none!important; }
+}
