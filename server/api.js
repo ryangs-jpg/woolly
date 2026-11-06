@@ -1,3 +1,4 @@
+import {searchAutomatic} from './auto-search.js';
 import {searchCommons,commonsQuery} from './commons.js';
 import {publicProviders,searchOpenverse,searchTourism} from './public-sources.js';
 import {safeUrl,labels} from '../public/core.js';
@@ -43,12 +44,12 @@ export async function handleApi(request,env){
   if(url.pathname==='/api/search'&&request.method==='GET'){
    const query=(url.searchParams.get('q')||'').trim();if(!query||query.length>500)throw new ApiError(400,'검색 목적을 1~500자로 입력해 주세요.');
    const offset=Number(url.searchParams.get('offset')||0);if(!Number.isSafeInteger(offset)||offset<0||offset>600)throw new ApiError(400,'검색 페이지가 올바르지 않습니다.');
-   const provider=url.searchParams.get('provider')||'commons';if(!['commons','openverse','tourapi'].includes(provider))throw new ApiError(400,'지원하지 않는 공개 API입니다.');
+   const provider=url.searchParams.get('provider')||'commons';if(!['auto','commons','openverse','tourapi'].includes(provider))throw new ApiError(400,'지원하지 않는 공개 API입니다.');
    if(provider==='tourapi'&&!env.TOURAPI_SERVICE_KEY)throw new ApiError(424,'TourAPI 활용 신청 후 TOURAPI_SERVICE_KEY를 Vercel 서버 환경변수에 등록해 주세요.');
-   const cacheKey=provider+':'+(provider==='tourapi'?query:commonsQuery(query))+':'+offset;
-   if(env.DB){const row=await env.DB.prepare('SELECT payload_json FROM search_cache WHERE query_key = ? AND expires_at > ?').bind(cacheKey,Date.now()).first();if(row)return sendJson({...JSON.parse(row.payload_json),cached:true});}
-   const result=provider==='openverse'?await searchOpenverse(query,Math.max(1,offset),env.FETCH||fetch):provider==='tourapi'?await searchTourism(query,Math.max(1,offset),env,env.FETCH||fetch):await searchCommons(query,offset,env.FETCH||fetch);
-   if(env.DB)await env.DB.batch([env.DB.prepare('DELETE FROM search_cache WHERE expires_at < ?').bind(Date.now()),env.DB.prepare('INSERT INTO search_cache(query_key,payload_json,expires_at) VALUES(?,?,?) ON CONFLICT(query_key) DO UPDATE SET payload_json=excluded.payload_json,expires_at=excluded.expires_at').bind(cacheKey,JSON.stringify(result),Date.now()+300000)]);
+   const cacheKey='simple-v1:'+provider+':'+(provider==='auto'?Boolean(env.TOURAPI_SERVICE_KEY)+':':'')+(provider==='tourapi'?query:commonsQuery(query))+':'+offset;
+   if(env.DB){try{const row=await env.DB.prepare('SELECT payload_json FROM search_cache WHERE query_key = ? AND expires_at > ?').bind(cacheKey,Date.now()).first();if(row)return sendJson({...JSON.parse(row.payload_json),cached:true});}catch{console.warn('Search cache read unavailable');}}
+   const result=provider==='auto'?await searchAutomatic(query,env,env.FETCH||fetch):provider==='openverse'?await searchOpenverse(query,Math.max(1,offset),env.FETCH||fetch):provider==='tourapi'?await searchTourism(query,Math.max(1,offset),env,env.FETCH||fetch):await searchCommons(query,offset,env.FETCH||fetch);
+   if(env.DB){try{await env.DB.batch([env.DB.prepare('DELETE FROM search_cache WHERE expires_at < ?').bind(Date.now()),env.DB.prepare('INSERT INTO search_cache(query_key,payload_json,expires_at) VALUES(?,?,?) ON CONFLICT(query_key) DO UPDATE SET payload_json=excluded.payload_json,expires_at=excluded.expires_at').bind(cacheKey,JSON.stringify(result),Date.now()+300000)]);}catch{console.warn('Search cache write unavailable');}}
    return sendJson(result);
   }
   if(url.pathname==='/api/state'){
