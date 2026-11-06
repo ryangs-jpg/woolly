@@ -211,3 +211,23 @@ if('IntersectionObserver' in window&&!matchMedia('(prefers-reduced-motion: reduc
 
 // Decorative motion is progressive enhancement; core navigation remains functional.
 initializeJejuMotion({doc:document,win:window});
+
+// Gyuri's nine-frame adventure is loaded only after the user opens the card.
+const gyuriTrigger=$('gyuri-explore');
+const gyuriDialog=$('gyuri-dialog');
+const gyuriAnimation=$('gyuri-animation');
+if(gyuriTrigger&&gyuriDialog&&gyuriAnimation){
+ const reducedMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
+ gyuriTrigger.addEventListener('click',()=>{
+  const animationAllowed=!reducedMotion.matches;
+  gyuriAnimation.src=animationAllowed?gyuriAnimation.dataset.gif:'./gyuri.webp';
+  gyuriDialog.showModal();
+ });
+ gyuriDialog.addEventListener('close',()=>{
+  // Reset playback so each opening starts from the first frame.
+  gyuriAnimation.src='./gyuri.webp';
+ });
+ gyuriDialog.addEventListener('click',event=>{
+  if(event.target===gyuriDialog)gyuriDialog.close();
+ });
+}

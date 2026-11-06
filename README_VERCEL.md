@@ -113,3 +113,7 @@ Vercel Project Settings > Environment Variables에 독립된 32자 이상의 랜
 ## Citrus Atelier — site-wide light palette preview (2026-11-06)
 
 Site-wide appearance is centralized in `public/citrus.css`, loaded after the existing component styles. Main surfaces are warm cream (`#FFF8EF`, `#FFFCF7`), the sidebar is pale peach (`#F9E7D1`), branding uses tangerine (`#F58A3B`), buttons use accessible dark tangerine (`#B84E1D`), and text uses cocoa (`#45382F`). Also harmonized: hero, search, palette, cards, saved board, status messages, dialogs, footer, and owner-only studio. Reference images and source color concepts are not modified. The existing Gyuri cursor, menu motion, API search, saved data and studio server authorization are preserved. Review the Vercel preview deployment and responsive/accessibility checks before merging into `main`.
+
+## 귤이의 레퍼런스 탐험 9프레임 GIF (2026-11-06)
+
+메인 히어로의 '귤이의 레퍼런스 탐험' 카드가 클릭 가능한 버튼으로 바뀌며 애니메이션이 보이는 네이티브 팝업을 엽니다. `public/gyuri-exploration.gif`(9프레임 반복, 투명 배경)는 팝업을 열 때만 불러옵니다. 접근성 사용자를 위해 키보드로 열고 닫을 수 있으며, OS 모션 감소 설정에서는 `gyuri.webp` 정지 이미지만 표시합니다. 모바일에서도 카드가 보이도록 조정했습니다. 검색/보드/API/데이터 스튜디오 권한에는 변경사항이 없습니다.
