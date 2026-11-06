@@ -1,12 +1,8 @@
+import {searchIntent} from '../public/intent.js';
 const COMMONS_API='https://commons.wikimedia.org/w/api.php';
 const clean=value=>String(value??'').replace(/<[^>]*>/g,' ').replace(/&(?:nbsp|amp|quot|lt|gt);/g,s=>({'&nbsp;':' ','&amp;':'&','&quot;':'"','&lt;':'<','&gt;':'>'}[s])).replace(/\s+/g,' ').trim();
 export function trustedHttps(value,hosts){try{const u=new URL(value);return u.protocol==='https:'&&!u.username&&!u.password&&hosts.includes(u.hostname)?u.href:null;}catch{return null;}}
-export function commonsQuery(query){
- const dictionary=[[/감귤|귤|tangerine|mandarin/i,'tangerine'],[/현무암|basalt/i,'basalt'],[/돌담|stone wall/i,'stone wall'],[/돌문화|stone park/i,'stone park'],[/해녀|haenyeo/i,'haenyeo'],[/성산|seongsan/i,'Seongsan'],[/한라산|hallasan/i,'Hallasan'],[/오름|oreum/i,'oreum'],[/바다|해안|물결|sea|coast/i,'sea'],[/폭포|waterfall/i,'waterfall'],[/숲|forest/i,'forest'],[/꽃|유채|flower/i,'flower']];
- const terms=dictionary.filter(([re])=>re.test(query)).map(([,word])=>word);
- if(!terms.length){const english=query.replace(/[^a-zA-Z\s]/g,' ').trim().split(/\s+/).filter(x=>x.length>2&&!/^(jeju|reference|design)$/i.test(x)).slice(0,4);terms.push(...english);}
- return ['Jeju',...terms.slice(0,3)].join(' ');
-}
+export function commonsQuery(query){return searchIntent(query).effectiveQuery;}
 export function normalizeCommonsPage(page,query,now=new Date().toISOString()){
  const info=page.imageinfo?.[0],meta=info?.extmetadata||{};
  if(!info||!['image/jpeg','image/png','image/webp'].includes(info.mime)||!Number.isSafeInteger(page.pageid)||page.pageid<=0)return null;
