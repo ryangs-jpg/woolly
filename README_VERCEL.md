@@ -109,3 +109,7 @@ Vercel Project Settings > Environment Variables에 독립된 32자 이상의 랜
 
 ## 귤이 아틀리에 사이드바 리디자인 (2026-11-06)
 기존 공개 기능과 배포 도메인을 유지하며, 제주의 감귤 오렌지·크림·숲 녹색을 사용해 좌측 메뉴의 브랜드 카드, 귤이 이미지, 큐레이션 컬렉션, 하단 메시지를 정리했습니다. 활성 메뉴의 슬라이드 하이라이트, 스크롤 등장 모션, 마우스 귤이 아이콘은 계속 동작합니다. 데스크톱 고정 사이드바와 모바일 간결 메뉴는 각각 CSS로 구현하고, 모션 감소를 존중합니다. 관리자 데이터 스튜디오 메뉴는 서버 인증 이후에만 동적으로 생성됩니다.
+
+## Citrus Atelier — site-wide light palette preview (2026-11-06)
+
+Site-wide appearance is centralized in `public/citrus.css`, loaded after the existing component styles. Main surfaces are warm cream (`#FFF8EF`, `#FFFCF7`), the sidebar is pale peach (`#F9E7D1`), branding uses tangerine (`#F58A3B`), buttons use accessible dark tangerine (`#B84E1D`), and text uses cocoa (`#45382F`). Also harmonized: hero, search, palette, cards, saved board, status messages, dialogs, footer, and owner-only studio. Reference images and source color concepts are not modified. The existing Gyuri cursor, menu motion, API search, saved data and studio server authorization are preserved. Review the Vercel preview deployment and responsive/accessibility checks before merging into `main`.
